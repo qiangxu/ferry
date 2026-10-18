@@ -190,6 +190,8 @@ public final class SessionViewModel: ObservableObject {
         switch error as? SFTPError {
         case .connectionFailed: return "Connection failed."
         case .authenticationFailed: return "Authentication failed."
+        case .jumpConnectionFailed: return "Connection to the jump host failed."
+        case .jumpAuthenticationFailed: return "Authentication to the jump host failed."
         case .hostKeyChanged(let fp): return "Host key changed (\(fp)). Possible man-in-the-middle."
         case .hostKeyRejected: return "Host key rejected."
         case .timeout: return "Connection timed out."

@@ -19,17 +19,55 @@ public enum AuthInput: Sendable {
 /// returned.
 public actor SFTPSession {
     private let client: SSHClient
+    /// The jump (ProxyJump) client, when connected through one. It must outlive
+    /// `client` (the forwarded `target` session rides on it), so it is torn down
+    /// last in `disconnect()`.
+    private let jumpClient: SSHClient?
     private let sftp: SFTPClient
     /// The host this session connected to (used e.g. for cache keys).
     public nonisolated let host: String
 
-    private init(host: String, client: SSHClient, sftp: SFTPClient) {
+    private init(host: String, client: SSHClient, jumpClient: SSHClient? = nil, sftp: SFTPClient) {
         self.host = host
         self.client = client
+        self.jumpClient = jumpClient
         self.sftp = sftp
     }
 
+    /// Connects to an SFTP server, optionally via a single jump (ProxyJump) host.
+    ///
+    /// - When `jumpHost` is nil or empty, connects directly to `host:port`
+    ///   (unchanged single-hop behavior).
+    /// - When `jumpHost` is non-empty, connects to the jump host first (its host
+    ///   key validated through `validator`), then opens a forwarded hop to
+    ///   `host:port` (the target host key validated separately through the same
+    ///   `validator`), and opens SFTP on the target. Both hops are TOFU-validated;
+    ///   a changed key on either hop aborts the connect.
+    ///
+    /// The jump and target hops authenticate with the same `username` + `auth`.
     public static func connect(
+        host: String,
+        port: Int,
+        username: String,
+        auth: AuthInput,
+        validator: HostKeyValidating,
+        jumpHost: String? = nil,
+        jumpPort: Int = 22
+    ) async throws -> SFTPSession {
+        if let jumpHost, !jumpHost.isEmpty {
+            return try await connectThroughJump(
+                host: host, port: port, jumpHost: jumpHost, jumpPort: jumpPort,
+                username: username, auth: auth, validator: validator
+            )
+        }
+        return try await connectDirect(
+            host: host, port: port, username: username, auth: auth, validator: validator
+        )
+    }
+
+    // MARK: - Connect paths
+
+    private static func connectDirect(
         host: String,
         port: Int,
         username: String,
@@ -67,6 +105,75 @@ public actor SFTPSession {
             return SFTPSession(host: host, client: client, sftp: sftp)
         } catch {
             try? await client.close()
+            throw SFTPError.io("failed to open SFTP subsystem: \(error)")
+        }
+    }
+
+    private static func connectThroughJump(
+        host: String,
+        port: Int,
+        jumpHost: String,
+        jumpPort: Int,
+        username: String,
+        auth: AuthInput,
+        validator: HostKeyValidating
+    ) async throws -> SFTPSession {
+        // --- Hop 1: the jump host. A failure here (connect throwing) is a
+        // jump-stage failure; a host-key rejection surfaces verbatim. ---
+        let jumpAuth = try makeAuthMethod(username: username, auth: auth)
+        let jumpErrorBox = NIOLockedValueBox<Error?>(nil)
+        let jumpDelegate = PolicyHostKeyDelegate(
+            host: jumpHost, port: jumpPort, validator: validator, errorBox: jumpErrorBox
+        )
+        let jumpSettings = SSHClientSettings(
+            host: jumpHost,
+            port: jumpPort,
+            authenticationMethod: { jumpAuth },
+            hostKeyValidator: .custom(jumpDelegate)
+        )
+
+        let jumpClient: SSHClient
+        do {
+            jumpClient = try await SSHClient.connect(to: jumpSettings)
+        } catch {
+            if let captured = jumpErrorBox.withLockedValue({ $0 }) {
+                throw captured
+            }
+            throw mapJumpConnectError(error)
+        }
+
+        // --- Hop 2: the target, reached through the jump's direct-tcpip channel.
+        // A failure here (jump(to:) throwing) is a target-stage failure; a
+        // host-key rejection surfaces verbatim. ---
+        let targetAuth = try makeAuthMethod(username: username, auth: auth)
+        let targetErrorBox = NIOLockedValueBox<Error?>(nil)
+        let targetDelegate = PolicyHostKeyDelegate(
+            host: host, port: port, validator: validator, errorBox: targetErrorBox
+        )
+        let targetSettings = SSHClientSettings(
+            host: host,
+            port: port,
+            authenticationMethod: { targetAuth },
+            hostKeyValidator: .custom(targetDelegate)
+        )
+
+        let targetClient: SSHClient
+        do {
+            targetClient = try await jumpClient.jump(to: targetSettings)
+        } catch {
+            try? await jumpClient.close()
+            if let captured = targetErrorBox.withLockedValue({ $0 }) {
+                throw captured
+            }
+            throw mapConnectError(error)
+        }
+
+        do {
+            let sftp = try await targetClient.openSFTP()
+            return SFTPSession(host: host, client: targetClient, jumpClient: jumpClient, sftp: sftp)
+        } catch {
+            try? await targetClient.close()
+            try? await jumpClient.close()
             throw SFTPError.io("failed to open SFTP subsystem: \(error)")
         }
     }
@@ -166,6 +273,8 @@ public actor SFTPSession {
     public func disconnect() async {
         try? await sftp.close()
         try? await client.close()
+        // The jump client carries the target session, so tear it down last.
+        if let jumpClient { try? await jumpClient.close() }
     }
 
     // MARK: - Helpers
@@ -213,6 +322,30 @@ public actor SFTPSession {
             if description.contains("auth") { return .authenticationFailed }
             if description.contains("timeout") { return .timeout }
             return .connectionFailed
+        }
+    }
+
+    /// Jump-stage analogue of `mapConnectError`: maps a failure reaching the jump
+    /// host to its `.jump*` case, so callers can tell a jump-hop failure from a
+    /// target-hop failure (which reuses `.authenticationFailed` / `.connectionFailed`).
+    private static func mapJumpConnectError(_ error: Error) -> SFTPError {
+        switch error {
+        case let error as SSHClientError:
+            switch error {
+            case .allAuthenticationOptionsFailed,
+                 .unsupportedPasswordAuthentication,
+                 .unsupportedPrivateKeyAuthentication,
+                 .unsupportedHostBasedAuthentication:
+                return .jumpAuthenticationFailed
+            case .channelCreationFailed:
+                return .jumpConnectionFailed
+            }
+        case is AuthenticationFailed:
+            return .jumpAuthenticationFailed
+        default:
+            let description = String(describing: error).lowercased()
+            if description.contains("auth") { return .jumpAuthenticationFailed }
+            return .jumpConnectionFailed
         }
     }
 }

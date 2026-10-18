@@ -10,4 +10,11 @@ public enum SFTPError: Error, Equatable {
     case hostKeyRejected
     case timeout
     case io(String)
+    /// The connection to the jump (ProxyJump) host itself failed to establish.
+    /// Distinct from `.connectionFailed`, which (in a two-hop connect) means the
+    /// jump host was reached but the hop to the *target* failed.
+    case jumpConnectionFailed
+    /// Authentication to the jump (ProxyJump) host failed. Distinct from
+    /// `.authenticationFailed`, which denotes a target-host auth failure.
+    case jumpAuthenticationFailed
 }
