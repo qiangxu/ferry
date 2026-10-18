@@ -11,6 +11,7 @@ final class LoopbackSSHServer: @unchecked Sendable {
     private let password: String
     private let authorizedKey: NIOSSHPublicKey?
     private let sftpDelegate: SFTPDelegate?
+    private let allowDirectTCPIP: Bool
     private let hostPrivateKey = NIOSSHPrivateKey(ed25519Key: Curve25519.Signing.PrivateKey())
     private let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     private var server: SSHServer?
@@ -22,8 +23,10 @@ final class LoopbackSSHServer: @unchecked Sendable {
         username: String,
         password: String,
         authorizedEd25519PublicKey: NIOSSHPublicKey?,
-        sftpDelegate: SFTPDelegate? = nil
+        sftpDelegate: SFTPDelegate? = nil,
+        allowDirectTCPIP: Bool = false
     ) {
+        self.allowDirectTCPIP = allowDirectTCPIP
         self.username = username
         self.password = password
         self.authorizedKey = authorizedEd25519PublicKey
@@ -54,6 +57,7 @@ final class LoopbackSSHServer: @unchecked Sendable {
             group: group
         )
         if let sftpDelegate { server.enableSFTP(withDelegate: sftpDelegate) }
+        if allowDirectTCPIP { server.enableDirectTCPIP(withDelegate: LoopbackForwardingDelegate()) }
         self.server = server
         guard let port = server.channel.localAddress?.port else {
             throw LoopbackError.noPort
@@ -116,4 +120,41 @@ struct StubSFTPDelegate: SFTPDelegate {
     func addSymlink(linkPath: String, targetPath: String, context: SSHContext) async throws -> SFTPStatusCode { .permissionDenied }
     func readSymlink(atPath path: String, context: SSHContext) async throws -> [SFTPPathComponent] { throw StubError.unsupported }
     func rename(oldPath: String, newPath: String, flags: UInt32, context: SSHContext) async throws -> SFTPStatusCode { .permissionDenied }
+}
+
+/// Bidirectional direct-tcpip relay for the jump host.
+///
+/// Citadel 0.12.1's own `DirectTCPIPForwardingDelegate` is unusable here: its
+/// remote-side `ProxyChannelHandler` is outbound-only, so target->client bytes are
+/// never relayed and the first inbound read (the target's SSH banner) hits a
+/// `fatalError` in NIO ("tried to decode as type SSHChannelData but found IOData").
+/// It also double-installs `DataToBufferCodec` (`SSHServer` already adds one before
+/// calling the delegate). This delegate wires both directions explicitly.
+struct LoopbackForwardingDelegate: DirectTCPIPDelegate {
+    private final class Relay: ChannelInboundHandler, @unchecked Sendable {
+        typealias InboundIn = ByteBuffer
+        let peer: Channel
+        init(peer: Channel) { self.peer = peer }
+        func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+            peer.writeAndFlush(unwrapInboundIn(data), promise: nil)
+        }
+        func channelInactive(context: ChannelHandlerContext) {
+            peer.close(promise: nil)
+            context.fireChannelInactive()
+        }
+        func errorCaught(context: ChannelHandlerContext, error: Error) {
+            peer.close(promise: nil)
+            context.close(promise: nil)
+        }
+    }
+
+    func initializeDirectTCPIPChannel(_ channel: Channel, request: SSHChannelType.DirectTCPIP, context: SSHContext) -> EventLoopFuture<Void> {
+        ClientBootstrap(group: channel.eventLoop)
+            .connect(host: request.targetHost, port: request.targetPort)
+            .flatMap { remote in
+                remote.pipeline.addHandler(Relay(peer: channel)).flatMap {
+                    channel.pipeline.addHandler(Relay(peer: remote))
+                }
+            }
+    }
 }
