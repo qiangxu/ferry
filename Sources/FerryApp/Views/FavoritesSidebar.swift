@@ -35,6 +35,12 @@ struct FavoritesSidebar: View {
                     .onTapGesture { Task { await model.session.connect(fav) } }
                     .contextMenu {
                         Button("Edit...") { editing = fav; showConnect = true }
+                        Button("Forget this host") {
+                            model.session.forgetHost(host: fav.host, port: fav.port)
+                            if let j = fav.jumpHost, !j.isEmpty {
+                                model.session.forgetHost(host: j, port: fav.jumpPort)
+                            }
+                        }
                         Button("Delete", role: .destructive) { model.remove(fav) }
                     }
                 }

@@ -13,3 +13,6 @@
 - [ ] 从 Finder 拖一个文件到列表，上传成功，列表自动刷新并出现该文件
 - [ ] 私钥登录：选 Private key，选 ed25519 私钥，能连上
 - [ ] 密码错误时显示 Authentication failed
+- [ ] 经跳板机连接：新建连接，Server 填 192.168.3.180、Port 22，打开 Via jump host，Jump host 填 ngrokd.xyz10.com、Jump port 48425（用户名和密码与目标共用）；连接时依次弹出两次指纹确认，第一次写明跳板机 ngrokd.xyz10.com:48425，第二次写明目标 192.168.3.180:22；连上后列出的是 180 的目录，不是跳板机的
+- [ ] 编辑该条目，关掉 Via jump host 或清空 Jump host 保存，favorites.json 里 jumpHost 为空，连接走直连
+- [ ] 右键该条目选 Forget this host，再次连接，两个主机的指纹确认框重新弹出

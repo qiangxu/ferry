@@ -299,6 +299,43 @@ import Testing
         #expect(recorder.calls.isEmpty, "confirm must not be called: \(recorder.calls)")
     }
 
+    @Test func test_targetHostChangedKey_throws() async throws {
+        // Security: a changed key on the TARGET hop (reached through a trusted
+        // jump) must be rejected as hostKeyChanged and never offered to `confirm`.
+        let (jump, jumpPort) = try await startJumpServer(root: try makeTempDir())
+        let (target, targetPort) = try await startServer(root: try makeTempDir())
+
+        let store = KnownHostsStore(fileURL: tempKnownHostsURL())
+        let bogus = NIOSSHPrivateKey(ed25519Key: Curve25519.Signing.PrivateKey()).publicKey
+        try store.trust(host: "127.0.0.1", port: targetPort, keyType: "ssh-ed25519", blob: sshWireBlob(bogus))
+        let recorder = ConfirmRecorder()
+        let validator = TOFUHostKeyValidator(store: store, confirm: { host, port, _ in
+            recorder.record(host, port); return true
+        })
+
+        var thrown: Error?
+        do {
+            let session = try await SFTPSession.connect(
+                host: "127.0.0.1", port: targetPort, username: "u",
+                auth: .password("p"), validator: validator,
+                jumpHost: "127.0.0.1", jumpPort: jumpPort
+            )
+            await session.disconnect()
+        } catch {
+            thrown = error
+        }
+        await jump.stop(); await target.stop()
+
+        if let error = thrown as? FerryKit.SFTPError, case .hostKeyChanged = error {
+            // expected
+        } else {
+            Issue.record("expected SFTPError.hostKeyChanged, got \(String(describing: thrown))")
+        }
+        // The unknown jump key may be prompted; the changed target key never is.
+        #expect(!recorder.calls.contains { $0.port == targetPort },
+                "target must not be offered for trust: \(recorder.calls)")
+    }
+
     @Test func test_firstTimeJump_promptsForJumpThenTarget() async throws {
         // Security: first-time TOFU prompts once for the jump host, then once for
         // the target, each with the correct host:port.

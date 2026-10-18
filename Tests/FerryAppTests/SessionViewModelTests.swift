@@ -53,9 +53,10 @@ import Testing
             cache: cache,
             passwordProvider: { _ in "p" },
             confirmHostKey: { _, _, _ in confirm },
-            connector: { host, port, user, auth, validator in
+            connector: { host, port, user, auth, validator, jumpHost, jumpPort in
                 let s = try await SFTPSession.connect(
-                    host: host, port: port, username: user, auth: auth, validator: validator
+                    host: host, port: port, username: user, auth: auth, validator: validator,
+                    jumpHost: jumpHost, jumpPort: jumpPort
                 )
                 recorder.add(s)
                 return s

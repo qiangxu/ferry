@@ -14,7 +14,8 @@ public enum SessionState: Equatable {
 public final class SessionViewModel: ObservableObject {
     public typealias Connector = @Sendable (
         _ host: String, _ port: Int, _ username: String,
-        _ auth: AuthInput, _ validator: HostKeyValidating
+        _ auth: AuthInput, _ validator: HostKeyValidating,
+        _ jumpHost: String?, _ jumpPort: Int
     ) async throws -> SFTPSession
 
     @Published public private(set) var currentPath: String = "/"
@@ -37,9 +38,10 @@ public final class SessionViewModel: ObservableObject {
         opener: FileOpening = WorkspaceFileOpener(),
         passwordProvider: @escaping @Sendable (UUID) -> String?,
         confirmHostKey: @escaping @Sendable (_ host: String, _ port: Int, _ fingerprint: String) async -> Bool,
-        connector: @escaping Connector = { host, port, user, auth, validator in
+        connector: @escaping Connector = { host, port, user, auth, validator, jumpHost, jumpPort in
             try await SFTPSession.connect(
-                host: host, port: port, username: user, auth: auth, validator: validator
+                host: host, port: port, username: user, auth: auth, validator: validator,
+                jumpHost: jumpHost, jumpPort: jumpPort
             )
         }
     ) {
@@ -81,7 +83,8 @@ public final class SessionViewModel: ObservableObject {
         let validator = TOFUHostKeyValidator(store: knownHosts, confirm: confirmHostKey)
         do {
             let newSession = try await connector(
-                favorite.host, favorite.port, favorite.username, auth, validator
+                favorite.host, favorite.port, favorite.username, auth, validator,
+                favorite.jumpHost, favorite.jumpPort
             )
             if myGeneration != generation {
                 // A newer connect superseded this one while we were waiting.
@@ -125,6 +128,16 @@ public final class SessionViewModel: ObservableObject {
                 await stale.disconnect()
             }
             state = .failed(Self.describe(error))
+        }
+    }
+
+    /// Removes the stored host key so the next connect prompts again (TOFU).
+    /// The store is case-insensitive; pass the host as saved on the favorite.
+    public func forgetHost(host: String, port: Int) {
+        do {
+            try knownHosts.remove(host: host, port: port)
+        } catch {
+            state = .failed("Could not forget host: \(error)")
         }
     }
 

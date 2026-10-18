@@ -17,6 +17,9 @@ struct ConnectView: View {
     @State private var path = "/"
     @State private var note = ""
     @State private var color = "none"
+    @State private var useJump = false
+    @State private var jumpHost = ""
+    @State private var jumpPort = "22"
 
     private static let colors = ["none", "red", "orange", "yellow", "green", "blue", "purple", "gray"]
 
@@ -39,6 +42,13 @@ struct ConnectView: View {
                     }
                 } else {
                     SecureField("Password", text: $password)
+                }
+                Toggle("Via jump host", isOn: $useJump)
+                if useJump {
+                    TextField("Jump host (blank = direct)", text: $jumpHost)
+                    TextField("Jump port", text: $jumpPort)
+                    Text("Uses the same username and credentials as the server.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 TextField("Path (blank = home)", text: $path)
                 TextField("Note", text: $note)
@@ -70,6 +80,7 @@ struct ConnectView: View {
         !host.trimmingCharacters(in: .whitespaces).isEmpty
             && !username.trimmingCharacters(in: .whitespaces).isEmpty
             && Int(port) != nil
+            && (!useJump || Int(jumpPort) != nil)
     }
 
     private func load() {
@@ -83,6 +94,11 @@ struct ConnectView: View {
         path = f.initialPath
         note = f.note
         color = f.colorLabel ?? "none"
+        if let j = f.jumpHost, !j.isEmpty {
+            useJump = true
+            jumpHost = j
+            jumpPort = String(f.jumpPort)
+        }
     }
 
     private func chooseKey() {
@@ -98,12 +114,15 @@ struct ConnectView: View {
     private func save() -> Favorite? {
         let h = host.trimmingCharacters(in: .whitespaces)
         let u = username.trimmingCharacters(in: .whitespaces)
+        let j = jumpHost.trimmingCharacters(in: .whitespaces)
+        let jumping = useJump && !j.isEmpty
         let fav = Favorite(
             id: id, name: "\(u)@\(h)", host: h, port: Int(port) ?? 22, username: u,
             auth: useKey ? .privateKey : .password,
             privateKeyPath: useKey ? keyPath : nil,
             initialPath: path,
-            colorLabel: color == "none" ? nil : color, note: note
+            colorLabel: color == "none" ? nil : color, note: note,
+            jumpHost: jumping ? j : nil, jumpPort: jumping ? (Int(jumpPort) ?? 22) : 22
         )
         return model.save(fav, password: useKey ? nil : password) ? fav : nil
     }
