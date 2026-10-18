@@ -1,12 +1,12 @@
 import Foundation
 
-public enum AuthMethod: String, Codable {
+public enum AuthMethod: String, Codable, Sendable {
     case password
     case privateKey
 }
 
 /// A saved SFTP connection. Contains no secrets: passwords and passphrases live in Keychain.
-public struct Favorite: Codable, Identifiable, Equatable {
+public struct Favorite: Codable, Identifiable, Equatable, Sendable {
     public var id: UUID
     public var name: String
     public var host: String

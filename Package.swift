@@ -15,6 +15,14 @@ let package = Package(
             name: "FerryKit",
             dependencies: [.product(name: "Citadel", package: "Citadel")]
         ),
+        .target(
+            name: "FerryApp",
+            dependencies: ["FerryKit"]
+        ),
+        .testTarget(
+            name: "FerryAppTests",
+            dependencies: ["FerryApp", "FerryKit", .product(name: "Citadel", package: "Citadel")]
+        ),
         .testTarget(
             name: "FerryKitTests",
             dependencies: ["FerryKit", .product(name: "Citadel", package: "Citadel")]

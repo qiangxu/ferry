@@ -1,7 +1,7 @@
 import Foundation
 
 /// A single entry in a remote SFTP directory listing.
-public struct RemoteEntry: Equatable {
+public struct RemoteEntry: Equatable, Sendable {
     public let name: String
     public let path: String
     public let isDirectory: Bool
