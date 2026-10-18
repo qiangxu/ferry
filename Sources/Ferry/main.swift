@@ -1,0 +1,3 @@
+import FerryApp
+
+FerryMain.main()

@@ -19,6 +19,10 @@ let package = Package(
             name: "FerryApp",
             dependencies: ["FerryKit"]
         ),
+        .executableTarget(
+            name: "Ferry",
+            dependencies: ["FerryApp"]
+        ),
         .testTarget(
             name: "FerryAppTests",
             dependencies: ["FerryApp", "FerryKit", .product(name: "Citadel", package: "Citadel")]

@@ -139,6 +139,20 @@ public final class SessionViewModel: ObservableObject {
         }
     }
 
+    public func upload(_ localURL: URL) async {
+        guard let session else { return }
+        let myGeneration = generation
+        let remote = RemotePath.join(currentPath, localURL.lastPathComponent)
+        do {
+            try await session.upload(localURL, to: remote)
+            guard myGeneration == generation else { return }
+            await navigate(to: currentPath)
+        } catch {
+            guard myGeneration == generation else { return }
+            state = .failed(Self.describe(error))
+        }
+    }
+
     public func disconnect() async {
         generation += 1
         if let old = session {
