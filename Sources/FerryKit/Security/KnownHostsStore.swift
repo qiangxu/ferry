@@ -7,7 +7,7 @@ public enum HostKeyDecision: Equatable {
 }
 
 /// OpenSSH-compatible known_hosts file with trust-on-first-use decisions.
-public struct KnownHostsStore {
+public struct KnownHostsStore: Sendable {
     public let fileURL: URL
 
     public init(fileURL: URL) {
