@@ -34,7 +34,7 @@ private final class SpyOpener: FileOpening, @unchecked Sendable {
         )
         let port = try await server.start()
         let knownHosts = makeTempDir0().appendingPathComponent("known_hosts")
-        let validator = TOFUHostKeyValidator(store: KnownHostsStore(fileURL: knownHosts), confirm: { _ in true })
+        let validator = TOFUHostKeyValidator(store: KnownHostsStore(fileURL: knownHosts), confirm: { _, _, _ in true })
         let session: SFTPSession
         do {
             session = try await SFTPSession.connect(

@@ -32,7 +32,7 @@ struct RootView: View {
             Button("Trust and Connect") { prompter.resolve(true) }
             Button("Cancel", role: .cancel) { prompter.resolve(false) }
         } message: {
-            Text("This host has not been seen before.\nFingerprint:\n\(prompter.request?.fingerprint ?? "")")
+            Text("Host \(prompter.request.map { "\($0.host):\($0.port)" } ?? "") has not been seen before.\nFingerprint:\n\(prompter.request?.fingerprint ?? "")")
         }
         .alert("Error", isPresented: Binding(
             get: { model.errorMessage != nil },

@@ -28,7 +28,7 @@ public final class SessionViewModel: ObservableObject {
     private let cache: CachePaths
     private let opener: FileOpening
     private let passwordProvider: @Sendable (UUID) -> String?
-    private let confirmHostKey: @Sendable (String) async -> Bool
+    private let confirmHostKey: @Sendable (_ host: String, _ port: Int, _ fingerprint: String) async -> Bool
     private let connector: Connector
 
     public init(
@@ -36,7 +36,7 @@ public final class SessionViewModel: ObservableObject {
         cache: CachePaths,
         opener: FileOpening = WorkspaceFileOpener(),
         passwordProvider: @escaping @Sendable (UUID) -> String?,
-        confirmHostKey: @escaping @Sendable (String) async -> Bool,
+        confirmHostKey: @escaping @Sendable (_ host: String, _ port: Int, _ fingerprint: String) async -> Bool,
         connector: @escaping Connector = { host, port, user, auth, validator in
             try await SFTPSession.connect(
                 host: host, port: port, username: user, auth: auth, validator: validator

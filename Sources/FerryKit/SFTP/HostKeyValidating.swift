@@ -23,11 +23,11 @@ public protocol HostKeyValidating: Sendable {
 ///   for trust, so an existing record is never overwritten.
 public struct TOFUHostKeyValidator: HostKeyValidating {
     private let store: KnownHostsStore
-    private let confirm: @Sendable (_ fingerprint: String) async -> Bool
+    private let confirm: @Sendable (_ host: String, _ port: Int, _ fingerprint: String) async -> Bool
 
     public init(
         store: KnownHostsStore,
-        confirm: @escaping @Sendable (_ fingerprint: String) async -> Bool
+        confirm: @escaping @Sendable (_ host: String, _ port: Int, _ fingerprint: String) async -> Bool
     ) {
         self.store = store
         self.confirm = confirm
@@ -56,7 +56,7 @@ public struct TOFUHostKeyValidator: HostKeyValidating {
         case .changed(let fingerprint):
             throw SFTPError.hostKeyChanged(fingerprint: fingerprint)
         case .unknown(let fingerprint):
-            guard await confirm(fingerprint) else {
+            guard await confirm(host, port, fingerprint) else {
                 throw SFTPError.hostKeyRejected
             }
             do {

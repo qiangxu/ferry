@@ -6,6 +6,8 @@ import SwiftUI
 @MainActor
 public final class HostKeyPrompter: ObservableObject {
     public struct Request {
+        let host: String
+        let port: Int
         let fingerprint: String
         let continuation: CheckedContinuation<Bool, Never>
     }
@@ -14,9 +16,9 @@ public final class HostKeyPrompter: ObservableObject {
 
     nonisolated public init() {}
 
-    func ask(_ fingerprint: String) async -> Bool {
+    func ask(host: String, port: Int, fingerprint: String) async -> Bool {
         await withCheckedContinuation { cont in
-            request = Request(fingerprint: fingerprint, continuation: cont)
+            request = Request(host: host, port: port, fingerprint: fingerprint, continuation: cont)
         }
     }
 
@@ -52,7 +54,7 @@ public final class AppModel: ObservableObject {
             knownHosts: KnownHostsStore(fileURL: khURL),
             cache: CachePaths(root: cacheRoot),
             passwordProvider: { id in (try? creds.password(for: id)) ?? nil },
-            confirmHostKey: { fingerprint in await prompter.ask(fingerprint) }
+            confirmHostKey: { host, port, fingerprint in await prompter.ask(host: host, port: port, fingerprint: fingerprint) }
         )
         reload()
     }

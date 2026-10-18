@@ -23,7 +23,7 @@ import Testing
     }
 
     private func acceptingValidator() -> TOFUHostKeyValidator {
-        TOFUHostKeyValidator(store: KnownHostsStore(fileURL: tempKnownHostsURL()), confirm: { _ in true })
+        TOFUHostKeyValidator(store: KnownHostsStore(fileURL: tempKnownHostsURL()), confirm: { _, _, _ in true })
     }
 
     private func sshWireBlob(_ key: NIOSSHPublicKey) -> Data {
@@ -52,7 +52,7 @@ import Testing
         let knownHosts = tempKnownHostsURL()
         let validator = TOFUHostKeyValidator(
             store: KnownHostsStore(fileURL: knownHosts),
-            confirm: { _ in true }
+            confirm: { _, _, _ in true }
         )
 
         do {
@@ -80,7 +80,7 @@ import Testing
         let store = KnownHostsStore(fileURL: tempKnownHostsURL())
         let otherKey = NIOSSHPrivateKey(ed25519Key: Curve25519.Signing.PrivateKey()).publicKey
         try store.trust(host: "127.0.0.1", port: port, keyType: "ssh-ed25519", blob: sshWireBlob(otherKey))
-        let validator = TOFUHostKeyValidator(store: store, confirm: { _ in true })
+        let validator = TOFUHostKeyValidator(store: store, confirm: { _, _, _ in true })
 
         var thrown: Error?
         do {

@@ -52,7 +52,7 @@ import Testing
             knownHosts: KnownHostsStore(fileURL: hosts),
             cache: cache,
             passwordProvider: { _ in "p" },
-            confirmHostKey: { _ in confirm },
+            confirmHostKey: { _, _, _ in confirm },
             connector: { host, port, user, auth, validator in
                 let s = try await SFTPSession.connect(
                     host: host, port: port, username: user, auth: auth, validator: validator
