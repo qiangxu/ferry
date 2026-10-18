@@ -89,8 +89,31 @@ public final class SessionViewModel: ObservableObject {
                 return
             }
             session = newSession
-            let path = favorite.initialPath.isEmpty ? "/" : favorite.initialPath
-            let listed = try await newSession.list(path)
+            let path: String
+            let listed: [RemoteEntry]
+            if favorite.initialPath.isEmpty {
+                // Blank path means "land in HOME": realpath("."), then fall back.
+                var candidates: [String] = []
+                if let home = try? await newSession.homeDirectory(), !home.isEmpty {
+                    candidates.append(home)
+                }
+                candidates += [".", "/"]
+                var resolved: (String, [RemoteEntry])?
+                var lastError: Error = SFTPError.io("could not list initial directory")
+                for candidate in candidates {
+                    do {
+                        resolved = (candidate, try await newSession.list(candidate))
+                        break
+                    } catch {
+                        lastError = error
+                    }
+                }
+                guard let resolved else { throw lastError }
+                (path, listed) = resolved
+            } else {
+                path = favorite.initialPath
+                listed = try await newSession.list(path)
+            }
             guard myGeneration == generation else { return }
             currentPath = path
             entries = listed

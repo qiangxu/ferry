@@ -40,7 +40,7 @@ struct ConnectView: View {
                 } else {
                     SecureField("Password", text: $password)
                 }
-                TextField("Path", text: $path)
+                TextField("Path (blank = home)", text: $path)
                 TextField("Note", text: $note)
                 Picker("Color", selection: $color) {
                     ForEach(Self.colors, id: \.self) { Text($0.capitalized).tag($0) }
@@ -102,7 +102,7 @@ struct ConnectView: View {
             id: id, name: "\(u)@\(h)", host: h, port: Int(port) ?? 22, username: u,
             auth: useKey ? .privateKey : .password,
             privateKeyPath: useKey ? keyPath : nil,
-            initialPath: path.isEmpty ? "/" : path,
+            initialPath: path,
             colorLabel: color == "none" ? nil : color, note: note
         )
         return model.save(fav, password: useKey ? nil : password) ? fav : nil

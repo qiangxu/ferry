@@ -11,7 +11,7 @@ import Testing
         let root: URL
     }
 
-    private func makeFixture() async throws -> Fixture {
+    private func makeFixture(home: String = "/") async throws -> Fixture {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ferry-vm-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(
@@ -19,9 +19,13 @@ import Testing
         )
         try Data("hi".utf8).write(to: root.appendingPathComponent("a.txt"))
         try Data("yo".utf8).write(to: root.appendingPathComponent("sub/b.txt"))
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent("home/u"), withIntermediateDirectories: true
+        )
+        try Data("h".utf8).write(to: root.appendingPathComponent("home/u/inhome.txt"))
         let server = LoopbackSSHServer(
             username: "u", password: "p", authorizedEd25519PublicKey: nil,
-            sftpDelegate: TempDirSFTPDelegate(root: root)
+            sftpDelegate: TempDirSFTPDelegate(root: root, home: home)
         )
         return Fixture(server: server, port: try await server.start(), root: root)
     }
@@ -66,6 +70,17 @@ import Testing
         #expect(vm.state == .connected)
         #expect(!vm.entries.isEmpty)
         #expect(vm.currentPath == "/")
+        await vm.disconnect()
+        await f.server.stop()
+    }
+
+    @Test func emptyInitialPathLandsInHomeDirectory() async throws {
+        let f = try await makeFixture(home: "/home/u")
+        let vm = makeVM()
+        await vm.connect(favorite(port: f.port, initialPath: ""))
+        #expect(vm.state == .connected)
+        #expect(vm.currentPath == "/home/u")
+        #expect(vm.entries.map(\.name) == ["inhome.txt"])
         await vm.disconnect()
         await f.server.stop()
     }

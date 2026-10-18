@@ -108,6 +108,15 @@ public actor SFTPSession {
         return entries
     }
 
+    /// Resolves the user's home directory via SFTP `realpath(".")`.
+    public func homeDirectory() async throws -> String {
+        do {
+            return try await sftp.getRealPath(atPath: ".")
+        } catch {
+            throw SFTPError.io("realpath failed: \(error)")
+        }
+    }
+
     public func download(_ remotePath: String, to localURL: URL) async throws {
         do {
             let file = try await sftp.openFile(filePath: remotePath, flags: .read)

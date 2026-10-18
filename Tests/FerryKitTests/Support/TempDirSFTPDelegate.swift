@@ -9,9 +9,12 @@ import NIO
 /// against an actual filesystem, including real file handles for read and write.
 struct TempDirSFTPDelegate: SFTPDelegate {
     let root: URL
+    /// What `realpath(".")` (the user's "home") resolves to, as a remote path.
+    let home: String
 
-    init(root: URL) {
+    init(root: URL, home: String = "/") {
         self.root = root
+        self.home = home
     }
 
     // MARK: Path mapping
@@ -19,7 +22,9 @@ struct TempDirSFTPDelegate: SFTPDelegate {
     /// Canonicalizes a remote path into an absolute, slash-normalized form.
     /// Idempotent, so the client's `realpath` fixed-point loop terminates.
     fileprivate func canonical(_ remotePath: String) -> String {
-        if remotePath.isEmpty || remotePath == "." { return "/" }
+        if remotePath.isEmpty || remotePath == "." {
+            return home == "/" ? "/" : canonical(home)
+        }
         var components: [String] = []
         for part in remotePath.split(separator: "/", omittingEmptySubsequences: true) {
             switch part {
