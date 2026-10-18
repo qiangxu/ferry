@@ -138,4 +138,21 @@ import Testing
         await vm.disconnect()
         await f.server.stop()
     }
+
+    @Test func navigateFailureKeepsSessionConnectedAndSetsErrorMessage() async throws {
+        let f = try await makeFixture()
+        let rec = Recorder()
+        let vm = makeVM(recorder: rec)
+        await vm.connect(favorite(port: f.port))
+        // Kill the underlying link so the next list fails while the VM still thinks it is connected.
+        await rec.sessions.first?.disconnect()
+        await vm.navigate(to: "/sub")
+        #expect(vm.state == .connected)
+        #expect(vm.errorMessage != nil)
+        #expect(!vm.entries.isEmpty)
+        vm.dismissError()
+        #expect(vm.errorMessage == nil)
+        await vm.disconnect()
+        await f.server.stop()
+    }
 }

@@ -18,6 +18,8 @@ public final class HostKeyPrompter: ObservableObject {
 
     func ask(host: String, port: Int, fingerprint: String) async -> Bool {
         await withCheckedContinuation { cont in
+            // A superseded prompt must not hang its connect forever: reject it first.
+            request?.continuation.resume(returning: false)
             request = Request(host: host, port: port, fingerprint: fingerprint, continuation: cont)
         }
     }
@@ -68,6 +70,9 @@ public final class AppModel: ObservableObject {
         do {
             if favorite.auth == .password, let password, !password.isEmpty {
                 try credentials.setPassword(password, for: favorite.id)
+            } else if favorite.auth == .privateKey {
+                // Switching away from password auth: don't leave a stale secret in Keychain.
+                try? credentials.removePassword(for: favorite.id)
             }
             var list = try favoritesStore.load()
             if let i = list.firstIndex(where: { $0.id == favorite.id }) {

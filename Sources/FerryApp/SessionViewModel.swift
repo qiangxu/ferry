@@ -21,6 +21,8 @@ public final class SessionViewModel: ObservableObject {
     @Published public private(set) var currentPath: String = "/"
     @Published public private(set) var entries: [RemoteEntry] = []
     @Published public private(set) var state: SessionState = .disconnected
+    /// Non-fatal error from an action on a live session; shown as a banner without replacing the browser.
+    @Published public private(set) var errorMessage: String?
 
     private var session: SFTPSession?
     private var generation = 0
@@ -62,6 +64,7 @@ public final class SessionViewModel: ObservableObject {
             await old.disconnect()
         }
         entries = []
+        errorMessage = nil
         state = .connecting
 
         let auth: AuthInput
@@ -137,7 +140,7 @@ public final class SessionViewModel: ObservableObject {
         do {
             try knownHosts.remove(host: host, port: port)
         } catch {
-            state = .failed("Could not forget host: \(error)")
+            reportNonFatal("Could not forget host: \(error)")
         }
     }
 
@@ -151,7 +154,7 @@ public final class SessionViewModel: ObservableObject {
             entries = listed
         } catch {
             guard myGeneration == generation else { return }
-            state = .failed(Self.describe(error))
+            reportNonFatal(Self.describe(error))
         }
     }
 
@@ -171,7 +174,7 @@ public final class SessionViewModel: ObservableObject {
         do {
             try await coordinator.open(entry)
         } catch {
-            state = .failed(Self.describe(error))
+            reportNonFatal(Self.describe(error))
         }
     }
 
@@ -185,7 +188,22 @@ public final class SessionViewModel: ObservableObject {
             await navigate(to: currentPath)
         } catch {
             guard myGeneration == generation else { return }
-            state = .failed(Self.describe(error))
+            reportNonFatal(Self.describe(error))
+        }
+    }
+
+    public func dismissError() {
+        errorMessage = nil
+    }
+
+    /// Errors from actions on a live session must not tear the session down: a connected
+    /// session stays connected and the message goes to the banner. Without a live session
+    /// there is nothing to preserve, so it is shown as a failed state.
+    private func reportNonFatal(_ message: String) {
+        if state == .connected {
+            errorMessage = message
+        } else {
+            state = .failed(message)
         }
     }
 
@@ -196,6 +214,7 @@ public final class SessionViewModel: ObservableObject {
             await old.disconnect()
         }
         entries = []
+        errorMessage = nil
         state = .disconnected
     }
 

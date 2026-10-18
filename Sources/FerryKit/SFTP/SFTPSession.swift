@@ -125,6 +125,8 @@ public actor SFTPSession {
         let jumpDelegate = PolicyHostKeyDelegate(
             host: jumpHost, port: jumpPort, validator: validator, errorBox: jumpErrorBox
         )
+        // SSHClientSettings has no reconnect field; the settings-based connect/jump path never
+        // auto-reconnects (pool reconnect mode defaults to .never), matching connectDirect.
         let jumpSettings = SSHClientSettings(
             host: jumpHost,
             port: jumpPort,

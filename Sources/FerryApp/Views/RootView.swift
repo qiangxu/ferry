@@ -32,7 +32,7 @@ struct RootView: View {
             Button("Trust and Connect") { prompter.resolve(true) }
             Button("Cancel", role: .cancel) { prompter.resolve(false) }
         } message: {
-            Text("Host \(prompter.request.map { "\($0.host):\($0.port)" } ?? "") has not been seen before.\nFingerprint:\n\(prompter.request?.fingerprint ?? "")")
+            Text("Host \(prompter.request.map { Self.hostPort($0.host, $0.port) } ?? "") has not been seen before.\nFingerprint:\n\(prompter.request?.fingerprint ?? "")")
         }
         .alert("Error", isPresented: Binding(
             get: { model.errorMessage != nil },
@@ -52,7 +52,18 @@ struct RootView: View {
             VStack { ProgressView(); Text("Connecting...") }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .connected:
-            RemoteBrowserView(session: session)
+            VStack(spacing: 0) {
+                if let message = session.errorMessage {
+                    HStack {
+                        Text(message).foregroundStyle(.red).lineLimit(3)
+                        Spacer()
+                        Button("Dismiss") { session.dismissError() }
+                    }
+                    .padding(8)
+                    .background(.red.opacity(0.1))
+                }
+                RemoteBrowserView(session: session)
+            }
         case .failed(let message):
             VStack(spacing: 8) {
                 Text(message).foregroundStyle(.red)
@@ -63,6 +74,10 @@ struct RootView: View {
                 }
             }
         }
+    }
+
+    static func hostPort(_ host: String, _ port: Int) -> String {
+        host.contains(":") ? "[\(host)]:\(port)" : "\(host):\(port)"
     }
 
     private func placeholder(_ text: String) -> some View {

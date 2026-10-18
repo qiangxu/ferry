@@ -40,6 +40,7 @@ public struct Favorite: Codable, Identifiable, Equatable, Sendable {
     }
 
     // Custom decoding so favorites saved before jump-host fields existed still load as direct connections.
+    // New stored properties MUST be added to CodingKeys and init(from:) below; a missed key is silently dropped.
     private enum CodingKeys: String, CodingKey {
         case id, name, host, port, username, auth, privateKeyPath, initialPath, colorLabel, note
         case jumpHost, jumpPort

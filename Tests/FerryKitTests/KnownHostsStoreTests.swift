@@ -108,3 +108,11 @@ private let blobB = Data("another-blob".utf8)
     #expect(try String(contentsOf: url, encoding: .utf8)
             == "# note\nb.example ssh-ed25519 \(b)\nc.example ssh-ed25519 \(b)\n")
 }
+
+@Test func test_remove_prefixNeighborHostUntouched() throws {
+    let store = KnownHostsStore(fileURL: tmpURL())
+    try store.trust(host: "a.example", port: 22, keyType: "ssh-ed25519", blob: blobA)
+    try store.trust(host: "a.example.com", port: 22, keyType: "ssh-ed25519", blob: blobA)
+    try store.remove(host: "a.example", port: 22)
+    #expect(try store.decision(host: "a.example.com", port: 22, keyType: "ssh-ed25519", blob: blobA) == .match)
+}
