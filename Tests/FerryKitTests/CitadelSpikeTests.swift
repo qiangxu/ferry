@@ -5,10 +5,6 @@ import NIOSSH
 import Citadel
 import Testing
 
-// NOTE: no `import Foundation` in this file on purpose. This machine's CommandLineTools
-// ship a broken _Testing_Foundation cross-import overlay, which is triggered when a single
-// file imports both Foundation and Testing. Helpers needing Foundation live in Support/.
-
 @Suite struct CitadelSpikeTests {
     @Test func customValidatorReceivesServerHostKey() async throws {
         let server = LoopbackSSHServer(username: "u", password: "p", authorizedEd25519PublicKey: nil)

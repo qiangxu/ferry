@@ -1,6 +1,6 @@
 # Citadel spike 结论
 
-日期：2026-10-18。版本：Citadel 0.12.1（Package.swift 中 exact 锁定），其依赖 swift-nio-ssh 为 Wellz26 的 fork，解析到 0.3.7，swift-nio 2.104.0。
+日期：2026-10-18。版本：Citadel 0.12.1（Package.swift 中 exact 锁定），其依赖 swift-nio-ssh 为 Wellz26 的 fork。
 
 ## 1. 自定义 hostKeyValidator 是否暴露原始 host key
 
@@ -20,20 +20,18 @@ SFTP 子系统也能承载：`server.enableSFTP(withDelegate:)` 接一个 `SFTPD
 
 注意点：SFTPDelegate 协议有 11 个方法，openFile 返回的 `SFTPFileHandle` 需要自己实现读写，Task 7 的工作量主要在这里。
 
-## 3. 本机环境问题（影响后续所有任务的测试写法）
+## 3. 环境与依赖版本
 
-本机只装了 Command Line Tools（Swift 6.2.3），没有 Xcode，且 CLT 安装是半更新状态，三个问题：
+目标工具链：macOS 15.7.7 上的 Command Line Tools，Apple Swift 6.1.2，没有 Xcode（能在 macOS 15 上跑的最新 Xcode 16.4 同样是 Swift 6.1.2，所以 6.1.2 是这台机器的上限）。不需要任何补丁或额外 flag。
 
-1. `swift package`/`swift build` 在任何 Package.swift 上都链接失败。原因是 `ManifestAPI/PackageDescription.swiftmodule` 里残留了 2024 年的 `*.private.swiftinterface`（Swift 5.10），与新的 `libPackageDescription.dylib` 不匹配。
-2. 没有 XCTest。`import XCTest` 报 no such module，所以 spike 测试改用 Swift Testing（`import Testing`，`@Test`、`#expect`），不是计划里写的 XCTest 语法。后续任务计划中的 XCTest 示例需要同样转换（或者装上 Xcode 后恢复 XCTest）。
-3. `Testing.framework` 可用，但 `_Testing_Foundation.framework` 缺 Modules。同一个文件里同时 `import Foundation` 和 `import Testing` 会报 no such module '_Testing_Foundation'。绕法：测试文件不 import Foundation，需要 Foundation 的辅助代码放进 `Support/` 里的单独文件。
+XCTest 不可用，测试用 Swift Testing（`import Testing`，`@Test`、`#expect`）。后续任务计划里的 XCTest 示例需要同样转换。在这套 6.1.2 CLT 上，同一个文件里同时 import Foundation 和 Testing 没有问题，之前的 `_Testing_Foundation` 问题只出现在旧的半更新 CLT 上；`Support/` 里的 Foundation 辅助代码拆分仍保留，无害。
 
-本次的临时绕法（不入库）：把 `/Library/Developer/CommandLineTools` 的 usr 和 Library 复制到临时目录，删掉 stale 的 `*.private.swiftinterface`，把该目录的 `usr/bin` 放到 PATH 最前，再跑：
+依赖版本：Citadel 0.12.1 不需要降级。Package.resolved 是在 6.1.2 下重新解析的，SPM 会自动选出工具链能构建的版本，当前为 swift-collections 1.6.0、swift-log 1.15.1、swift-nio 2.104.0、swift-crypto 3.15.1、swift-asn1 1.7.3、swift-nio-ssh 0.3.7（Wellz26 fork）、swift-atomics 1.3.1、swift-system 1.8.1、BigInt 5.7.0。之前 Package.resolved 里 swift-collections 1.7.3、swift-log 1.16.1 是在 Swift 6.2.3 下解析的，换工具链后需要删掉重新解析。以后换工具链时同样先 `rm Package.resolved && swift package resolve`。
+
+验证命令（原生，无额外参数）：
 
 ```
-swift test -Xswiftc -F -Xswiftc <copy>/Library/Developer/Frameworks \
-  -Xlinker -F -Xlinker <copy>/Library/Developer/Frameworks \
-  -Xlinker -rpath -Xlinker <copy>/Library/Developer/Frameworks
+swift test
 ```
 
-根治办法是装完整 Xcode（或重装 CLT），之后这些绕法都不需要，XCTest 也恢复可用。
+结果：3 个测试全部通过。
