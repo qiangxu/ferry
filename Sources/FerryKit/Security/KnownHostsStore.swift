@@ -50,6 +50,29 @@ public struct KnownHostsStore: Sendable {
         try existing.write(to: fileURL, options: .atomic)
     }
 
+    /// Forgets a host:port so the next connection prompts again. Only lines naming this exact
+    /// host:port are touched (host compared case-insensitively); a comma-separated host list keeps
+    /// its other patterns. All other lines are written back byte-for-byte. Missing file is a no-op.
+    public func remove(host: String, port: Int) throws {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        let target = Self.hostPattern(host: host, port: port).lowercased()
+        let text = try String(contentsOf: fileURL, encoding: .utf8)
+        var changed = false
+        var out: [String] = []
+        for line in text.components(separatedBy: "\n") {
+            guard let range = line.range(of: "^[^ \t]+", options: .regularExpression),
+                  !line.hasPrefix("#") else { out.append(line); continue }
+            let patterns = line[range].split(separator: ",", omittingEmptySubsequences: false)
+            let kept = patterns.filter { $0.lowercased() != target }
+            if kept.count == patterns.count { out.append(line); continue }
+            changed = true
+            if kept.isEmpty { continue }
+            out.append(kept.joined(separator: ",") + line[range.upperBound...])
+        }
+        guard changed else { return }
+        try out.joined(separator: "\n").write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
     private static func hostPattern(host: String, port: Int) -> String {
         port == 22 ? host : "[\(host)]:\(port)"
     }
