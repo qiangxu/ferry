@@ -112,4 +112,28 @@ private final class SpyOpener: FileOpening, @unchecked Sendable {
         #expect(try Data(contentsOf: f.spy.urls[0]) == Data("v1".utf8))
         #expect(try Data(contentsOf: f.spy.urls[1]) == Data("v2".utf8))
     }
+
+    @Test func test_open_failedDownload_leavesNoFileAndLaterOpenSucceeds() async throws {
+        let f = try await makeFixture()
+        defer { Task { await teardown(f) } }
+        try Data("done".utf8).write(to: f.remoteRoot.appendingPathComponent("a.txt"))
+        let e = entry("/a.txt", size: 4, modified: Date(timeIntervalSince1970: 1_700_000_000))
+        let url = f.cache.cacheURL(host: "127.0.0.1", remotePath: e.path, mtime: e.modified, size: e.size)
+        let dir = url.deletingLastPathComponent()
+        let fm = FileManager.default
+
+        // Read-only target dir: the remote read succeeds but writing locally fails.
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        try fm.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
+        await #expect(throws: (any Error).self) { try await f.coordinator.open(e) }
+        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
+
+        #expect(!fm.fileExists(atPath: url.path))
+        #expect(f.spy.urls.isEmpty)
+        #expect(try fm.contentsOfDirectory(atPath: dir.path).isEmpty)
+
+        try await f.coordinator.open(e)
+        #expect(f.spy.urls == [url])
+        #expect(try Data(contentsOf: url) == Data("done".utf8))
+    }
 }

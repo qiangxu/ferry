@@ -35,8 +35,23 @@ public struct FileOpenCoordinator: Sendable {
             host: session.host, remotePath: entry.path, mtime: entry.modified, size: entry.size
         )
         if !fm.fileExists(atPath: url.path) {
-            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try await session.download(entry.path, to: url)
+            let dir = url.deletingLastPathComponent()
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            // Download to a unique temp file and move into place only on success,
+            // so a file at `url` is always complete.
+            let part = dir.appendingPathComponent(".\(UUID().uuidString).part")
+            do {
+                try await session.download(entry.path, to: part)
+                if fm.fileExists(atPath: url.path) {
+                    // A concurrent open finished first; keep its copy.
+                    try? fm.removeItem(at: part)
+                } else {
+                    try fm.moveItem(at: part, to: url)
+                }
+            } catch {
+                try? fm.removeItem(at: part)
+                throw error
+            }
         }
         opener.open(url: url)
     }
