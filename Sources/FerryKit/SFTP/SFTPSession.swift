@@ -20,8 +20,11 @@ public enum AuthInput: Sendable {
 public actor SFTPSession {
     private let client: SSHClient
     private let sftp: SFTPClient
+    /// The host this session connected to (used e.g. for cache keys).
+    public nonisolated let host: String
 
-    private init(client: SSHClient, sftp: SFTPClient) {
+    private init(host: String, client: SSHClient, sftp: SFTPClient) {
+        self.host = host
         self.client = client
         self.sftp = sftp
     }
@@ -61,7 +64,7 @@ public actor SFTPSession {
 
         do {
             let sftp = try await client.openSFTP()
-            return SFTPSession(client: client, sftp: sftp)
+            return SFTPSession(host: host, client: client, sftp: sftp)
         } catch {
             try? await client.close()
             throw SFTPError.io("failed to open SFTP subsystem: \(error)")
