@@ -42,6 +42,41 @@ private func tmpURL() -> URL {
     #expect(fav.port == 22)
 }
 
+@Test func test_favoriteWithJumpHost_roundTrips() throws {
+    let url = tmpURL()
+    let store = FavoritesStore(fileURL: url)
+    let fav = Favorite(id: UUID(), name: "inner", host: "10.20.0.5", port: 22,
+                       username: "qiangxu", auth: .privateKey, privateKeyPath: "~/.ssh/id_ed25519",
+                       initialPath: "/srv", colorLabel: nil, note: "",
+                       jumpHost: "192.168.3.180", jumpPort: 2222)
+    try store.save([fav])
+    let loaded = try store.load()
+    #expect(loaded == [fav])
+    #expect(loaded.first?.jumpHost == "192.168.3.180")
+    #expect(loaded.first?.jumpPort == 2222)
+}
+
+@Test func test_decodeLegacyJSON_withoutJumpFields_defaultsToDirect() throws {
+    let legacy = """
+    {
+      "id": "6F1C2B3A-1111-4A2B-9C3D-0123456789AB",
+      "name": "old",
+      "host": "10.0.0.180",
+      "port": 22,
+      "username": "qiangxu",
+      "auth": "privateKey",
+      "privateKeyPath": "~/.ssh/id_ed25519",
+      "initialPath": "/home/qiangxu",
+      "colorLabel": null,
+      "note": ""
+    }
+    """
+    let fav = try JSONDecoder().decode(Favorite.self, from: Data(legacy.utf8))
+    #expect(fav.jumpHost == nil)
+    #expect(fav.jumpPort == 22)
+    #expect(fav.host == "10.0.0.180")
+}
+
 @Test func saveCreatesParentDirectory() throws {
     let url = tmpURL()
     #expect(!FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path))
