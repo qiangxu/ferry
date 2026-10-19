@@ -1,11 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="1024" height="1024">
-  <defs><clipPath id="c"><rect width="120" height="120" rx="27"/></clipPath></defs>
-  <g clip-path="url(#c)">
-    <rect width="120" height="120" fill="#0e557f"/>
-    <rect x="37" y="52" width="46" height="16" rx="2.4" fill="#ffffff"/>
-    <rect x="43.5" y="56.5" width="7" height="7" rx="1" fill="#0e557f"/>
-    <rect x="56.5" y="56.5" width="7" height="7" rx="1" fill="#ffc24b"/>
-    <rect x="69.5" y="56.5" width="7" height="7" rx="1" fill="#0e557f"/>
-    <path d="M26 68 H94 L85.5 83 Q60 88 34.5 83 Z" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512">
+  <defs>
+    <linearGradient id="heart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a6cff"/><stop offset="1" stop-color="#d734e0"/></linearGradient>
+    <linearGradient id="lhalf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f8ff0"/><stop offset="1" stop-color="#2f74cf"/></linearGradient>
+    <linearGradient id="rhalf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4ebff"/><stop offset="1" stop-color="#b9def9"/></linearGradient>
+    <clipPath id="sq"><rect width="200" height="200" rx="45"/></clipPath>
+  </defs>
+  <g clip-path="url(#sq)">
+    <rect x="0" y="0" width="100" height="200" fill="url(#lhalf)"/>
+    <rect x="100" y="0" width="100" height="200" fill="url(#rhalf)"/>
+    <!-- face: eyes + smile, one on each half, meeting at center -->
+    <g fill="#16304d">
+      <rect x="70" y="60" width="11" height="26" rx="5.5"/>
+      <rect x="119" y="60" width="11" height="26" rx="5.5"/>
+    </g>
+    <path d="M64 112 Q100 140 136 112" fill="none" stroke="#16304d" stroke-width="9" stroke-linecap="round"/>
+    <!-- purple heart where the two mouths meet -->
+    <g transform="translate(100,122) scale(1.35)">
+      <path transform="translate(-12,-12)" d="M12 20.3C12 20.3 3.3 13.9 3.3 8.1C3.3 5.1 5.6 2.8 8.6 2.8C10.4 2.8 11.5 3.9 12 4.9C12.5 3.9 13.6 2.8 15.4 2.8C18.4 2.8 20.7 5.1 20.7 8.1C20.7 13.9 12 20.3 12 20.3Z" fill="url(#heart)" stroke="#fff" stroke-width="1.6"/>
+    </g>
   </g>
 </svg>
