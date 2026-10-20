@@ -8,13 +8,12 @@
     <clipPath id="c"><circle cx="100" cy="100" r="99"/></clipPath>
   </defs>
   <g clip-path="url(#c)">
-    <rect x="0" width="100" height="200" fill="url(#l)"/><rect x="100" width="100" height="200" fill="url(#r)"/>
+    <rect x="0" width="200" height="200" fill="url(#l)"/><rect x="100" width="100" height="200" fill="url(#r)"/>
     <rect width="200" height="200" fill="url(#sheen)"/><rect width="200" height="200" fill="url(#vig)"/>
-    <line x1="100" y1="0" x2="100" y2="200" stroke="#fff" stroke-opacity=".09" stroke-width="1.5"/>
     <g filter="url(#sh)" fill="#16181d">
-      <rect x="71" y="58" width="7.5" height="27" rx="3.75"/>
-      <circle cx="124" cy="71.5" r="11.5" fill="none" stroke="#16181d" stroke-width="7"/>
-      <g transform="translate(100,117) scale(1.8)"><path transform="translate(-12,-12)" d="M12 20.3C12 20.3 3.3 13.9 3.3 8.1C3.3 5.1 5.6 2.8 8.6 2.8C10.4 2.8 11.5 3.9 12 4.9C12.5 3.9 13.6 2.8 15.4 2.8C18.4 2.8 20.7 5.1 20.7 8.1C20.7 13.9 12 20.3 12 20.3Z"/></g>
+      <rect x="71" y="67" width="7.5" height="27" rx="3.75"/>
+      <circle cx="124" cy="80.5" r="11.5" fill="none" stroke="#16181d" stroke-width="7"/>
+      <g transform="translate(100,126) scale(1.8)"><path transform="translate(-12,-12)" d="M12 20.3C12 20.3 3.3 13.9 3.3 8.1C3.3 5.1 5.6 2.8 8.6 2.8C10.4 2.8 11.5 3.9 12 4.9C12.5 3.9 13.6 2.8 15.4 2.8C18.4 2.8 20.7 5.1 20.7 8.1C20.7 13.9 12 20.3 12 20.3Z"/></g>
     </g>
   </g>
 </svg>
