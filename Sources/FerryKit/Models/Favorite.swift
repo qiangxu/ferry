@@ -5,6 +5,21 @@ public enum AuthMethod: String, Codable, Sendable {
     case privateKey
 }
 
+/// A saved directory inside a connection — a "second-level" favorite. Selecting it
+/// connects to the parent favorite's host (reusing its credentials and jump host) and
+/// lands straight in `path`.
+public struct DirBookmark: Codable, Identifiable, Equatable, Sendable {
+    public var id: UUID
+    public var name: String
+    public var path: String
+
+    public init(id: UUID = UUID(), name: String, path: String) {
+        self.id = id
+        self.name = name
+        self.path = path
+    }
+}
+
 /// A saved SFTP connection. Contains no secrets: passwords and passphrases live in Keychain.
 public struct Favorite: Codable, Identifiable, Equatable, Sendable {
     public var id: UUID
@@ -20,11 +35,14 @@ public struct Favorite: Codable, Identifiable, Equatable, Sendable {
     /// Optional jump-host address. Username and auth are shared with the target.
     public var jumpHost: String?
     public var jumpPort: Int
+    /// Saved directories under this connection, shown as a second level in the sidebar.
+    public var bookmarks: [DirBookmark]
 
     public init(id: UUID, name: String, host: String, port: Int = 22, username: String,
                 auth: AuthMethod, privateKeyPath: String?, initialPath: String,
                 colorLabel: String?, note: String,
-                jumpHost: String? = nil, jumpPort: Int = 22) {
+                jumpHost: String? = nil, jumpPort: Int = 22,
+                bookmarks: [DirBookmark] = []) {
         self.id = id
         self.name = name
         self.host = host
@@ -37,13 +55,14 @@ public struct Favorite: Codable, Identifiable, Equatable, Sendable {
         self.note = note
         self.jumpHost = jumpHost
         self.jumpPort = jumpPort
+        self.bookmarks = bookmarks
     }
 
     // Custom decoding so favorites saved before jump-host fields existed still load as direct connections.
     // New stored properties MUST be added to CodingKeys and init(from:) below; a missed key is silently dropped.
     private enum CodingKeys: String, CodingKey {
         case id, name, host, port, username, auth, privateKeyPath, initialPath, colorLabel, note
-        case jumpHost, jumpPort
+        case jumpHost, jumpPort, bookmarks
     }
 
     public init(from decoder: Decoder) throws {
@@ -60,5 +79,6 @@ public struct Favorite: Codable, Identifiable, Equatable, Sendable {
         note = try c.decode(String.self, forKey: .note)
         jumpHost = try c.decodeIfPresent(String.self, forKey: .jumpHost)
         jumpPort = try c.decodeIfPresent(Int.self, forKey: .jumpPort) ?? 22
+        bookmarks = try c.decodeIfPresent([DirBookmark].self, forKey: .bookmarks) ?? []
     }
 }

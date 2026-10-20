@@ -21,6 +21,9 @@ public final class SessionViewModel: ObservableObject {
     @Published public private(set) var currentPath: String = "/"
     @Published public private(set) var entries: [RemoteEntry] = []
     @Published public private(set) var state: SessionState = .disconnected
+    /// The favorite backing the live session, so the browser can save the current
+    /// directory as a second-level bookmark under the right connection.
+    @Published public private(set) var activeFavoriteID: UUID?
     /// Non-fatal error from an action on a live session; shown as a banner without replacing the browser.
     @Published public private(set) var errorMessage: String?
 
@@ -55,9 +58,12 @@ public final class SessionViewModel: ObservableObject {
         self.connector = connector
     }
 
-    public func connect(_ favorite: Favorite) async {
+    /// Connects to `favorite`. `overridePath`, when given, replaces the favorite's
+    /// initial path — this is how a second-level bookmark lands straight in its directory.
+    public func connect(_ favorite: Favorite, overridePath: String? = nil) async {
         generation += 1
         let myGeneration = generation
+        let effectivePath = overridePath ?? favorite.initialPath
 
         if let old = session {
             session = nil
@@ -97,7 +103,7 @@ public final class SessionViewModel: ObservableObject {
             session = newSession
             let path: String
             let listed: [RemoteEntry]
-            if favorite.initialPath.isEmpty {
+            if effectivePath.isEmpty {
                 // Blank path means "land in HOME": realpath("."), then fall back.
                 var candidates: [String] = []
                 if let home = try? await newSession.homeDirectory(), !home.isEmpty {
@@ -117,12 +123,13 @@ public final class SessionViewModel: ObservableObject {
                 guard let resolved else { throw lastError }
                 (path, listed) = resolved
             } else {
-                path = favorite.initialPath
+                path = effectivePath
                 listed = try await newSession.list(path)
             }
             guard myGeneration == generation else { return }
             currentPath = path
             entries = listed
+            activeFavoriteID = favorite.id
             state = .connected
         } catch {
             guard myGeneration == generation else { return }
@@ -215,6 +222,7 @@ public final class SessionViewModel: ObservableObject {
         }
         entries = []
         errorMessage = nil
+        activeFavoriteID = nil
         state = .disconnected
     }
 

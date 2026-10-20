@@ -86,6 +86,30 @@ import Testing
         await f.server.stop()
     }
 
+    @Test func connectExposesActiveFavoriteID() async throws {
+        let f = try await makeFixture()
+        let vm = makeVM()
+        let fav = favorite(port: f.port)
+        #expect(vm.activeFavoriteID == nil)
+        await vm.connect(fav)
+        #expect(vm.activeFavoriteID == fav.id)
+        await vm.disconnect()
+        #expect(vm.activeFavoriteID == nil)
+        await f.server.stop()
+    }
+
+    @Test func connectWithOverridePathLandsThere() async throws {
+        let f = try await makeFixture()
+        let vm = makeVM()
+        // Favorite's own path is "/", but the override sends us straight to /sub.
+        await vm.connect(favorite(port: f.port, initialPath: "/"), overridePath: "/sub")
+        #expect(vm.state == .connected)
+        #expect(vm.currentPath == "/sub")
+        #expect(vm.entries.map(\.name) == ["b.txt"])
+        await vm.disconnect()
+        await f.server.stop()
+    }
+
     @Test func hostKeyRejectedFails() async throws {
         let f = try await makeFixture()
         let vm = makeVM(confirm: false)

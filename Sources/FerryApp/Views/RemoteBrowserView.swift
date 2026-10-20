@@ -3,9 +3,15 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct RemoteBrowserView: View {
+    @ObservedObject var model: AppModel
     @ObservedObject var session: SessionViewModel
     @State private var selection: String?
     @State private var dropTargeted = false
+
+    init(model: AppModel) {
+        self.model = model
+        self.session = model.session
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,8 +62,19 @@ struct RemoteBrowserView: View {
                 if crumb.path != crumbs.last?.path { Text("/").foregroundStyle(.secondary) }
             }
             Spacer()
+            Button { addCurrentDirectoryToFavorites() } label: { Image(systemName: "bookmark") }
+                .help("Save this directory as a favorite")
+                .disabled(session.activeFavoriteID == nil)
         }
         .padding(8)
+    }
+
+    /// Saves the current directory as a second-level bookmark under the active connection.
+    private func addCurrentDirectoryToFavorites() {
+        guard let favoriteID = session.activeFavoriteID else { return }
+        let path = session.currentPath
+        let last = RemotePath.name(of: path)
+        model.addBookmark(to: favoriteID, name: last.isEmpty ? path : last, path: path)
     }
 
     static func breadcrumbs(_ path: String) -> [(name: String, path: String)] {

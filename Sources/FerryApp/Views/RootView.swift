@@ -62,7 +62,7 @@ struct RootView: View {
                     .padding(8)
                     .background(.red.opacity(0.1))
                 }
-                RemoteBrowserView(session: session)
+                RemoteBrowserView(model: model)
             }
         case .failed(let message):
             VStack(spacing: 8) {
@@ -70,7 +70,7 @@ struct RootView: View {
                 if session.entries.isEmpty {
                     placeholder("Pick a favorite or press + to connect.")
                 } else {
-                    RemoteBrowserView(session: session)
+                    RemoteBrowserView(model: model)
                 }
             }
         }

@@ -77,6 +77,33 @@ private func tmpURL() -> URL {
     #expect(fav.host == "10.0.0.180")
 }
 
+@Test func test_favoriteWithBookmarks_roundTrips() throws {
+    let url = tmpURL()
+    let store = FavoritesStore(fileURL: url)
+    let fav = Favorite(id: UUID(), name: "srv", host: "10.0.0.9", port: 22,
+                       username: "qiangxu", auth: .privateKey, privateKeyPath: "~/.ssh/id_ed25519",
+                       initialPath: "/home/qiangxu", colorLabel: nil, note: "",
+                       bookmarks: [DirBookmark(name: "project", path: "/var/www/project"),
+                                   DirBookmark(name: "logs", path: "/home/qiangxu/logs")])
+    try store.save([fav])
+    let loaded = try store.load()
+    #expect(loaded == [fav])
+    #expect(loaded.first?.bookmarks.map(\.path) == ["/var/www/project", "/home/qiangxu/logs"])
+}
+
+@Test func test_decodeLegacyJSON_withoutBookmarks_defaultsToEmpty() throws {
+    let legacy = """
+    {
+      "id": "6F1C2B3A-1111-4A2B-9C3D-0123456789AB",
+      "name": "old", "host": "10.0.0.180", "port": 22, "username": "qiangxu",
+      "auth": "privateKey", "privateKeyPath": "~/.ssh/id_ed25519",
+      "initialPath": "/home/qiangxu", "colorLabel": null, "note": ""
+    }
+    """
+    let fav = try JSONDecoder().decode(Favorite.self, from: Data(legacy.utf8))
+    #expect(fav.bookmarks == [])
+}
+
 @Test func saveCreatesParentDirectory() throws {
     let url = tmpURL()
     #expect(!FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path))

@@ -89,6 +89,37 @@ public final class AppModel: ObservableObject {
         }
     }
 
+    /// Appends the current directory as a second-level bookmark under a connection.
+    public func addBookmark(to favoriteID: UUID, name: String, path: String) {
+        mutateFavorite(favoriteID) { $0.bookmarks.append(DirBookmark(name: name, path: path)) }
+    }
+
+    public func renameBookmark(_ bookmarkID: UUID, in favoriteID: UUID, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        mutateFavorite(favoriteID) { fav in
+            if let i = fav.bookmarks.firstIndex(where: { $0.id == bookmarkID }) { fav.bookmarks[i].name = trimmed }
+        }
+    }
+
+    public func removeBookmark(_ bookmarkID: UUID, from favoriteID: UUID) {
+        mutateFavorite(favoriteID) { $0.bookmarks.removeAll { $0.id == bookmarkID } }
+    }
+
+    /// Loads the list from disk, applies `transform` to one favorite, and saves — so a
+    /// bookmark edit never clobbers other fields a concurrent save may have written.
+    private func mutateFavorite(_ id: UUID, _ transform: (inout Favorite) -> Void) {
+        do {
+            var list = try favoritesStore.load()
+            guard let i = list.firstIndex(where: { $0.id == id }) else { return }
+            transform(&list[i])
+            try favoritesStore.save(list)
+            favorites = list
+        } catch {
+            errorMessage = "Save failed: \(error)"
+        }
+    }
+
     public func remove(_ favorite: Favorite) {
         do {
             try? credentials.removePassword(for: favorite.id)
